@@ -1,71 +1,115 @@
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { isSuperAdminAuthed, setSuperAdminAuthed } from '../super-admin/auth/superAdminAuth'
+import { signInWithEmailAndPassword } from 'firebase/auth'
+import { auth } from '../../firebase'
 
 const VALID_EMAIL = 'ganesh@gmail.com'
 const VALID_PASSWORD = 'Ganesh@123'
 
 function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
 
-  const handleSubmit = (e) => {
+  const redirectTo = useMemo(() => {
+    const from = location.state?.from
+    return typeof from === 'string' && from.startsWith('/super-admin') ? from : '/super-admin'
+  }, [location.state])
+
+  useEffect(() => {
+    if (isSuperAdminAuthed()) navigate('/super-admin', { replace: true })
+  }, [navigate])
+
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    if (email === VALID_EMAIL && password === VALID_PASSWORD) {
+    try {
+      // Frontend check to keep your existing hard-coded credential gate
+      if (email !== VALID_EMAIL || password !== VALID_PASSWORD) {
+        setError('Invalid credentials')
+        return
+      }
+
+      // Firebase Auth sign-in so Firestore rules see request.auth != null
+      await signInWithEmailAndPassword(auth, email, password)
+
       setError('')
-      navigate('/super-admin')
-    } else {
-      setError('Invalid credentials')
+      setSuperAdminAuthed(true)
+      navigate(redirectTo, { replace: true })
+    } catch (err) {
+      setError(err?.message || 'Unable to sign in.')
     }
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f3f4f6' }}>
-      <div style={{ background: '#ffffff', padding: '2rem', borderRadius: '0.75rem', boxShadow: '0 10px 25px rgba(0,0,0,0.08)', width: '100%', maxWidth: '400px' }}>
-        <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem', textAlign: 'center' }}>Super Admin Login</h2>
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }}
-            />
+    <div className="min-h-dvh bg-gradient-to-br from-slate-50 via-white to-slate-100 px-4 py-10 text-slate-900">
+      <div className="mx-auto flex w-full max-w-md flex-col gap-6">
+        <div className="text-center">
+          <div className="mx-auto mb-4 grid size-12 place-items-center rounded-2xl bg-slate-900 text-white shadow-sm">
+            SA
           </div>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }}
-            />
-          </div>
-          {error && (
-            <div style={{ marginBottom: '1rem', color: '#b91c1c', fontSize: '0.875rem' }}>
-              {error}
+          <h1 className="text-2xl font-semibold tracking-tight">Super Admin</h1>
+          <p className="mt-1 text-sm text-slate-600">Sign in to manage leads, clients, and products.</p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="ganesh@gmail.com"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
+              />
             </div>
-          )}
-          <button
-            type="submit"
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              borderRadius: '0.375rem',
-              border: 'none',
-              backgroundColor: '#2563eb',
-              color: '#ffffff',
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
-          >
-            Login
-          </button>
-        </form>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="••••••••••"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
+              />
+            </div>
+
+            {error ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {error}
+              </div>
+            ) : null}
+
+            <button
+              type="submit"
+              className="group inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-4 focus:ring-slate-200"
+            >
+              Sign in
+              <span className="transition group-hover:translate-x-0.5">→</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setEmail(VALID_EMAIL)
+                setPassword(VALID_PASSWORD)
+                setError('')
+              }}
+              className="w-full text-xs font-medium text-slate-600 underline-offset-4 hover:underline"
+            >
+              Use demo credentials
+            </button>
+          </form>
+        </div>
+
+        <p className="text-center text-xs text-slate-500">
+          Protected access. Only authorized Super Admin credentials are allowed.
+        </p>
       </div>
     </div>
   )
