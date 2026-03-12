@@ -151,23 +151,26 @@ function ScheduleModal({ open, onClose, lead, onScheduled }) {
       return
     }
 
-    try {
-      setSubmitting(true)
-      setError('')
+      try {
+        setSubmitting(true)
+        setError('')
 
-      const response = await fetch('http://localhost:5000/schedule-meeting', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          clientName: lead.fullName || lead.name || '',
-          clientEmail: lead.email || '',
-          meetingDate: date,
-          meetingTime: time,
-          meetingLink: meetingLink.trim()
+        const token = localStorage.getItem('super_admin_token') || ''
+
+        const response = await fetch('http://localhost:5000/api/schedule-meeting', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({
+            clientName: lead.fullName || lead.name || '',
+            clientEmail: lead.email || '',
+            meetingDate: date,
+            meetingTime: time,
+            meetingLink: meetingLink.trim()
+          })
         })
-      })
 
       if (!response.ok) {
         const data = await response.json().catch(() => null)

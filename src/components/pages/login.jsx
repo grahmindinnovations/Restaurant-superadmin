@@ -13,6 +13,7 @@ function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
   const redirectTo = useMemo(() => {
     const from = location.state?.from
@@ -26,20 +27,35 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
-      // Frontend check to keep your existing hard-coded credential gate
-      if (email !== VALID_EMAIL || password !== VALID_PASSWORD) {
-        setError('Invalid credentials')
-        return
+      setLoading(true)
+      setError('')
+
+      const resp = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, password })
+      })
+
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => null)
+        throw new Error(data?.message || 'Invalid credentials')
       }
 
-      // Firebase Auth sign-in so Firestore rules see request.auth != null
+      const data = await resp.json()
+      if (data?.token) {
+        localStorage.setItem('super_admin_token', data.token)
+      }
+
       await signInWithEmailAndPassword(auth, email, password)
 
-      setError('')
       setSuperAdminAuthed(true)
       navigate(redirectTo, { replace: true })
     } catch (err) {
       setError(err?.message || 'Unable to sign in.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -87,9 +103,10 @@ function Login() {
 
             <button
               type="submit"
-              className="group inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-4 focus:ring-slate-200"
+              disabled={loading}
+              className="group inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-4 focus:ring-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Sign in
+              {loading ? 'Signing in…' : 'Sign in'}
               <span className="transition group-hover:translate-x-0.5">→</span>
             </button>
 
